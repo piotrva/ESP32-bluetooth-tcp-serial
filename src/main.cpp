@@ -31,7 +31,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
         std::string value = pCharacteristic->getValue();
         if (value.length() > 0) {
-            Serial.println("Received data: " + String(value.c_str()));
+            Serial1.println(String(value.c_str()));
             // Echo the received data back as a notification (optional)
             pCharacteristic->setValue(value);
             pCharacteristic->notify();
@@ -102,11 +102,24 @@ void setup()
   setupBLE();
 }
 
+#define BUFFER_SIZE 32
+uint8_t buffer[BUFFER_SIZE];
+uint8_t bufferCnt = 0;
+
 void loop()
 {
-  // Example: Sending data to the client
-    static int counter = 0;
-    txCharacteristic->setValue(String(counter++).c_str());
+  if (Serial1.available())
+  {
+    while (Serial1.available())
+    {
+      buffer[bufferCnt++] = Serial1.read();
+      if (bufferCnt >= BUFFER_SIZE)
+      {
+        break;
+      }
+    }
+    txCharacteristic->setValue(buffer, bufferCnt);
     txCharacteristic->notify(); // Notify client of new data
-    delay(1000);
+    bufferCnt = 0;
+  }
 }
