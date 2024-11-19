@@ -29,13 +29,11 @@ BLECharacteristic *rxCharacteristic;
 
 class MyCallbacks : public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
+        // Get the raw binary data and its length
         std::string value = pCharacteristic->getValue();
-        if (value.length() > 0) {
-            Serial1.println(String(value.c_str()));
-            // Echo the received data back as a notification (optional)
-            pCharacteristic->setValue(value);
-            pCharacteristic->notify();
-        }
+        size_t length = value.length();
+        const uint8_t *data = (const uint8_t *)value.data(); // Pointer to raw binary data
+        Serial1.write(data, length);
     }
 };
 
