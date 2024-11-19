@@ -34,6 +34,8 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     size_t length = value.length();
     const uint8_t *data = (const uint8_t *)value.data(); // Pointer to raw binary data
     Serial1.write(data, length);
+    pCharacteristic->setValue((uint8_t *)data, length);
+    pCharacteristic->notify();
   }
 };
 
