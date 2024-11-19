@@ -28,28 +28,28 @@ BLECharacteristic *txCharacteristic;
 BLECharacteristic *rxCharacteristic;
 
 class MyCallbacks : public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-        // Get the raw binary data and its length
-        std::string value = pCharacteristic->getValue();
-        size_t length = value.length();
-        const uint8_t *data = (const uint8_t *)value.data(); // Pointer to raw binary data
-        Serial1.write(data, length);
-    }
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    // Get the raw binary data and its length
+    std::string value = pCharacteristic->getValue();
+    size_t length = value.length();
+    const uint8_t *data = (const uint8_t *)value.data(); // Pointer to raw binary data
+    Serial1.write(data, length);
+  }
 };
 
 class MyServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer* server) {
-        Serial.println("Client connected");
-        leds[0].setRGB(0, 0, 255);  // Blue for connection
-        FastLED.show();
-    }
-
-    void onDisconnect(BLEServer* server) {
-        Serial.println("Client disconnected");
-        leds[0].setRGB(255, 0, 0);  // Red for disconnection
-        FastLED.show();
-        server->startAdvertising();  // Restart advertising
-    }
+  void onConnect(BLEServer* server) {
+    Serial.println("Client connected");
+    leds[0].setRGB(0, 0, 255);  // Blue for connection
+    FastLED.show();
+  }
+  
+  void onDisconnect(BLEServer* server) {
+    Serial.println("Client disconnected");
+    leds[0].setRGB(255, 0, 0);  // Red for disconnection
+    FastLED.show();
+    server->startAdvertising();  // Restart advertising
+  }
 };
 
 void setupBLE(void)
@@ -62,15 +62,15 @@ void setupBLE(void)
   BLEService *service = server->createService(SERVICE_UUID);
 
   rxCharacteristic = service->createCharacteristic(
-      CHARACTERISTIC_RX,
-      BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
+    CHARACTERISTIC_RX,
+    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
   );
   rxCharacteristic->addDescriptor(new BLE2902());
   rxCharacteristic->setCallbacks(new MyCallbacks());
 
   txCharacteristic = service->createCharacteristic(
-      CHARACTERISTIC_TX,
-      BLECharacteristic::PROPERTY_NOTIFY
+    CHARACTERISTIC_TX,
+    BLECharacteristic::PROPERTY_NOTIFY
   );
   txCharacteristic->addDescriptor(new BLE2902());
 
