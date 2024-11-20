@@ -55,10 +55,11 @@ class MyServerCallbacks : public BLEServerCallbacks {
     Serial1.updateBaudRate(115200);
     uint8_t baudTo9600[]  = {'P', 'M', '3', 'a', 0x05, 0x80, 0x63, 0x01, 0x80, 0x25, 0x00, 0x00, 0x00, 0x61, 0x33};
     uint8_t baudTo38400[] = {'P', 'M', '3', 'a', 0x05, 0x80, 0x63, 0x01, 0x00, 0x96, 0x00, 0x00, 0x00, 0x61, 0x33};
-    Serial1.write(baudTo38400, 15);
+    uint8_t baudTo57600[] = {'P', 'M', '3', 'a', 0x05, 0x80, 0x63, 0x01, 0x00, 0xE1, 0x00, 0x00, 0x00, 0x61, 0x33};
+    Serial1.write(baudTo57600, 15);
     delay(1000);
 
-    Serial1.updateBaudRate(38400);
+    Serial1.updateBaudRate(57600);
     Serial1.flush();
     leds[0].setRGB(0, 0, 255);  // Blue for connection
     FastLED.show();
