@@ -1,3 +1,9 @@
+/*-----------------------------------------------------------------------------
+ * This code was developed with assistance from OpenAI's ChatGPT
+ * and is published under the GPL 3.0 license.
+ * Author: Piotr Rzeszut
+-----------------------------------------------------------------------------*/
+
 #include <Arduino.h>
 
 //-----------------------------------------------------------------------------
@@ -26,6 +32,7 @@ CRGB leds[NUM_LEDS];
 
 BLECharacteristic *txCharacteristic;
 BLECharacteristic *rxCharacteristic;
+BLEServer *server;
 
 class MyCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
@@ -57,8 +64,9 @@ class MyServerCallbacks : public BLEServerCallbacks {
 void setupBLE(void)
 {
   BLEDevice::init("ESP32-C3-BLE");
+  BLEDevice::setMTU(512);
 
-  BLEServer *server = BLEDevice::createServer();
+  server = BLEDevice::createServer();
   server->setCallbacks(new MyServerCallbacks()); // Set connection callbacks
 
   BLEService *service = server->createService(SERVICE_UUID);
@@ -81,11 +89,21 @@ void setupBLE(void)
   advertising->addServiceUUID(SERVICE_UUID);
   advertising->start();
 
-  Serial.println("BLE server started, waiting for connections...");
+  // Serial.println("BLE server started, waiting for connections...");
   leds[0].setRGB(0, 255, 0);  // Green for advertising
   FastLED.show();
 }
 
+//-----------------------------------------------------------------------------
+// Serial buffer
+//-----------------------------------------------------------------------------
+#define BUFFER_SIZE 512
+uint8_t buffer[BUFFER_SIZE];
+uint32_t bufferCnt = 0;
+
+//-----------------------------------------------------------------------------
+// Setup
+//-----------------------------------------------------------------------------
 void setup()
 {
   FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
@@ -97,23 +115,22 @@ void setup()
   Serial0.begin(115200, SERIAL_8N1, 20, 21);  // Serial0
   Serial1.begin(115200, SERIAL_8N1,  1,  0);  // Serial1 - by default does not print boot messages
   
-  leds[0].setRGB(0, 255, 0);
+  leds[0].setRGB(255, 255, 255);
   FastLED.show();
   setupBLE();
 }
-
-#define BUFFER_SIZE 32
-uint8_t buffer[BUFFER_SIZE];
-uint8_t bufferCnt = 0;
 
 void loop()
 {
   if (Serial1.available())
   {
+    size_t mtu = server->getConnectedCount() > 0 ? server->getPeerMTU(0) : 23; // MTU includes 3-byte L2CAP header
+    mtu = mtu - 3; // Effective payload size
+    // Serial.println(mtu);
     while (Serial1.available())
     {
       buffer[bufferCnt++] = Serial1.read();
-      if (bufferCnt >= BUFFER_SIZE)
+      if (bufferCnt >= BUFFER_SIZE || bufferCnt >= mtu)
       {
         break;
       }
@@ -121,5 +138,6 @@ void loop()
     txCharacteristic->setValue(buffer, bufferCnt);
     txCharacteristic->notify(); // Notify client of new data
     bufferCnt = 0;
+    delay(10);
   }
 }
