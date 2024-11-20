@@ -41,8 +41,8 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     size_t length = value.length();
     const uint8_t *data = (const uint8_t *)value.data(); // Pointer to raw binary data
     Serial1.write(data, length);
-    pCharacteristic->setValue((uint8_t *)data, length);
-    pCharacteristic->notify();
+    // pCharacteristic->setValue((uint8_t *)data, length);
+    // pCharacteristic->notify();
   }
 };
 
@@ -135,9 +135,11 @@ void loop()
         break;
       }
     }
-    txCharacteristic->setValue(buffer, bufferCnt);
-    txCharacteristic->notify(); // Notify client of new data
+    // txCharacteristic->setValue(buffer, bufferCnt);
+    // txCharacteristic->notify(); // Notify client of new data
+    rxCharacteristic->setValue(buffer, bufferCnt);
+    rxCharacteristic->notify(); // Notify client of new data
     bufferCnt = 0;
-    delay(10);
+    delay(5);
   }
 }
