@@ -1,145 +1,53 @@
-/*-----------------------------------------------------------------------------
- * This code was developed with assistance from OpenAI's ChatGPT
- * and is published under the GPL 3.0 license.
- * Author: Piotr Rzeszut
------------------------------------------------------------------------------*/
-
 #include <Arduino.h>
-
-//-----------------------------------------------------------------------------
-// LED
-//-----------------------------------------------------------------------------
-#include <FastLED.h>
-
-#define NUM_LEDS 1
-#define DATA_PIN 10
-#define BRIGHTNESS 32
-
-CRGB leds[NUM_LEDS];
 
 //-----------------------------------------------------------------------------
 // Bluetooth Serial
 //-----------------------------------------------------------------------------
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
-
-// BLE Service and Characteristic UUIDs
-#define SERVICE_UUID        "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
-#define CHARACTERISTIC_TX   "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
-#define CHARACTERISTIC_RX   "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
-
-BLECharacteristic *txCharacteristic;
-BLECharacteristic *rxCharacteristic;
-BLEServer *server;
-
-class MyCallbacks : public BLECharacteristicCallbacks {
-  void onWrite(BLECharacteristic *pCharacteristic) {
-    // Get the raw binary data and its length
-    std::string value = pCharacteristic->getValue();
-    size_t length = value.length();
-    const uint8_t *data = (const uint8_t *)value.data(); // Pointer to raw binary data
-    Serial1.write(data, length);
-    // pCharacteristic->setValue((uint8_t *)data, length);
-    // pCharacteristic->notify();
-  }
-};
-
-class MyServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer* server) {
-    Serial.println("Client connected");
-    leds[0].setRGB(0, 0, 255);  // Blue for connection
-    FastLED.show();
-  }
-  
-  void onDisconnect(BLEServer* server) {
-    Serial.println("Client disconnected");
-    leds[0].setRGB(255, 0, 0);  // Red for disconnection
-    FastLED.show();
-    server->startAdvertising();  // Restart advertising
-  }
-};
-
-void setupBLE(void)
-{
-  BLEDevice::init("ESP32-C3-BLE");
-  BLEDevice::setMTU(512);
-
-  server = BLEDevice::createServer();
-  server->setCallbacks(new MyServerCallbacks()); // Set connection callbacks
-
-  BLEService *service = server->createService(SERVICE_UUID);
-
-  rxCharacteristic = service->createCharacteristic(
-    CHARACTERISTIC_RX,
-    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
-  );
-  rxCharacteristic->addDescriptor(new BLE2902());
-  rxCharacteristic->setCallbacks(new MyCallbacks());
-
-  txCharacteristic = service->createCharacteristic(
-    CHARACTERISTIC_TX,
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
-  txCharacteristic->addDescriptor(new BLE2902());
-
-  service->start();
-  BLEAdvertising *advertising = BLEDevice::getAdvertising();
-  advertising->addServiceUUID(SERVICE_UUID);
-  advertising->start();
-
-  // Serial.println("BLE server started, waiting for connections...");
-  leds[0].setRGB(0, 255, 0);  // Green for advertising
-  FastLED.show();
-}
+#include "BluetoothSerial.h"
+BluetoothSerial SerialBT;
 
 //-----------------------------------------------------------------------------
-// Serial buffer
+// Serial hardware
 //-----------------------------------------------------------------------------
 #define BUFFER_SIZE 512
 uint8_t buffer[BUFFER_SIZE];
 uint32_t bufferCnt = 0;
+
+#define RXD2 16
+#define TXD2 17
+
+#define RXD1 4
+#define TXD1 2
 
 //-----------------------------------------------------------------------------
 // Setup
 //-----------------------------------------------------------------------------
 void setup()
 {
-  FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
-  FastLED.setBrightness(BRIGHTNESS);
-  memset8(leds, 0, NUM_LEDS * sizeof(CRGB));
-  FastLED.show();
-  Serial.begin(115200);  // USB-CDC serial
-  //                                RX  TX
-  Serial0.begin(115200, SERIAL_8N1, 20, 21);  // Serial0
-  Serial1.begin(115200, SERIAL_8N1,  1,  0);  // Serial1 - by default does not print boot messages
-  
-  leds[0].setRGB(255, 255, 255);
-  FastLED.show();
-  setupBLE();
+  Serial.begin(115200);  // USB serial
+  Serial1.begin(115200, SERIAL_8N1, RXD1, TXD1);
+  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2); // PM3
+  Serial2.setRxBufferSize(1024);
+  SerialBT.begin("ESP32test");
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop()
 {
-  if (Serial1.available())
-  {
-    size_t mtu = server->getConnectedCount() > 0 ? server->getPeerMTU(0) : 23; // MTU includes 3-byte L2CAP header
-    mtu = mtu - 3; // Effective payload size
-    // Serial.println(mtu);
-    while (Serial1.available())
+  if (Serial2.available()) {
+    while(Serial2.available())
     {
-      buffer[bufferCnt++] = Serial1.read();
-      if (bufferCnt >= BUFFER_SIZE || bufferCnt >= mtu)
+      buffer[bufferCnt++] = Serial2.read();
+      if(bufferCnt >= BUFFER_SIZE)
       {
         break;
       }
     }
-    // txCharacteristic->setValue(buffer, bufferCnt);
-    // txCharacteristic->notify(); // Notify client of new data
-    rxCharacteristic->setValue(buffer, bufferCnt);
-    rxCharacteristic->notify(); // Notify client of new data
+    SerialBT.write(buffer, bufferCnt);
     bufferCnt = 0;
-    delay(5);
+  }
+  if (SerialBT.available()) {
+    Serial2.write(SerialBT.read());
   }
 }
