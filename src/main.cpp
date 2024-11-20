@@ -49,6 +49,17 @@ class MyCallbacks : public BLECharacteristicCallbacks {
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer* server) {
     Serial.println("Client connected");
+    leds[0].setRGB(255, 0, 255);  // Violet for PM3 config
+    FastLED.show();
+
+    Serial1.updateBaudRate(115200);
+    uint8_t baudTo9600[]  = {'P', 'M', '3', 'a', 0x05, 0x80, 0x63, 0x01, 0x80, 0x25, 0x00, 0x00, 0x00, 0x61, 0x33};
+    uint8_t baudTo38400[] = {'P', 'M', '3', 'a', 0x05, 0x80, 0x63, 0x01, 0x00, 0x96, 0x00, 0x00, 0x00, 0x61, 0x33};
+    Serial1.write(baudTo38400, 15);
+    delay(1000);
+
+    Serial1.updateBaudRate(38400);
+    Serial1.flush();
     leds[0].setRGB(0, 0, 255);  // Blue for connection
     FastLED.show();
   }
@@ -87,6 +98,8 @@ void setupBLE(void)
   service->start();
   BLEAdvertising *advertising = BLEDevice::getAdvertising();
   advertising->addServiceUUID(SERVICE_UUID);
+  advertising->setMinInterval(0x20);
+  advertising->setMaxInterval(0x20);
   advertising->start();
 
   // Serial.println("BLE server started, waiting for connections...");
@@ -114,6 +127,8 @@ void setup()
   //                                RX  TX
   Serial0.begin(115200, SERIAL_8N1, 20, 21);  // Serial0
   Serial1.begin(115200, SERIAL_8N1,  1,  0);  // Serial1 - by default does not print boot messages
+  Serial1.setRxBufferSize(128);
+  Serial1.setTxBufferSize(128);
   
   leds[0].setRGB(255, 255, 255);
   FastLED.show();
@@ -140,6 +155,5 @@ void loop()
     rxCharacteristic->setValue(buffer, bufferCnt);
     rxCharacteristic->notify(); // Notify client of new data
     bufferCnt = 0;
-    delay(5);
   }
 }
